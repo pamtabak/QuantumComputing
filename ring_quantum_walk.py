@@ -5,6 +5,7 @@ from projectq.ops import H, Measure, CNOT, X
 from projectq.meta import Dagger, Control
 from projectq.types import WeakQubitRef, Qureg
 
+from numpy import basis_repr
 
 # Performs a controlled gate mixing off controls, active when qubit is 0, and
 #  normal controls. active when qubit is 1. Sel is a binary array referencing
@@ -34,12 +35,53 @@ def counter(eng, nodes, n_qbits, inc=1):
 
 
 
+# Bound counters for cases when graph size (number of vertices) isn't a power 
+#  of 2.
+def cyclic_bound(eng, nodes, n_qbits, graph_size):
+	sel = [int(i) for i in basis_repr(graph_size)] + [1]
+	n_of_ones = sum(sel)
+	line = 0
+	ind = 0
+	qubits = range(n_qbits)
+	params = list()
+	while ind < n_of_ones / 2:
+		if sel[line]:
+			params.append(
+				(sel[:line] + sel[line + 1:], qubits[:line] + qubits[line +1 :],
+				[line], X, eng, nodes))
+			generic_control(*params[-1])
+			ind += 1
+		line += 1
+	for p in params[-2::-1]:
+		generic_control(*p)
+
+
+
+def cyclic_decrement_bound(eng, nodes, n_qbits, graph_size):
+	sel = [int(i) for i in basis_repr(graph_size)] + [1]
+	n_of_ones = sum(sel)
+	line = 0
+	ind = 0
+	qubits = range(n_qbits)
+	params = list()
+	while ind < n_of_ones / 2:
+		if not sel[line]:
+			params.append(
+				(sel[:line] + sel[line + 1:], qubits[:line] + qubits[line +1 :],
+				[line], X, eng, nodes))
+			generic_control(*params[-1])
+			ind += 1
+		line += 1
+	for p in params[-2::-1]:
+		generic_control(*p)
+
+
 # Perform a given number of steps of a cycle
 def walk(eng, nodes, n_qbits, steps):
-	H | nodes[n_qbits - 1] # uses last bit as coin
+	H | nodes[n_qbits - 1] # uses last bit as coin for cycle
 	for s in range(steps):
-		counter(eng, nodes, n_qbits, inc=1)
-		counter(eng, nodes, n_qbits, inc=0)
+		counter(eng, nodes, n_qbits, inc=1) # increment
+		counter(eng, nodes, n_qbits, inc=0) # decrement
 
 
 eng = MainEngine ()
