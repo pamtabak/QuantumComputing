@@ -6,45 +6,40 @@ from projectq.meta import Dagger, Control
 from projectq.types import WeakQubitRef, Qureg
 
 
-def increment(eng, nodes, n_qbits):
+# Performs a controlled gate mixing off controls, active when qubit is 0, and
+#  normal controls. active when qubit is 1. Sel is a binary array referencing
+#  which qubits will be off and which will be normal.
+def generic_control(sel, controls, targets, gate, eng, nodes):
+	for j in range(len(sel)): # prepare controls evaluated on qubits
+		if not sel[j]:
+			X | nodes[controls[j]]
+
+	with Control(eng, [nodes[c] for c in controls]): # allow mutiple target bits
+		for t in targets:
+			X | nodes[t]
+
+	for j in range(len(sel)): # clean prepared states
+		if not sel[j]:
+			X | nodes[controls[j]]
+
+
+
+# Performs a increment(inc = 1) or decrement (inc = 0) counter on states given inc parameter.
+def counter(eng, nodes, n_qbits, inc=1):
 	control_bit = n_qbits - 1
-	last_node_bit = n_qbits - 2
 
-	for i in range(0, last_node_bit):
-		with Control(eng, nodes[i+1:]):
-			X | nodes[i]
+	for i in range(control_bit):
+		sel = [inc] * (control_bit - i) 
+		generic_control(sel, list(range(i + 1, n_qbits)), [i], X, eng, nodes)
 
-	with Control(eng, nodes[control_bit]):
-		X | nodes[last_node_bit]
-
-
-# decrement
-# since it seems we don`t have an off control: we will implement one
-# we will X the control qubits
-def decrement(eng, nodes, n_qbits):
-	control_bit = n_qbits - 1
-	last_node_bit = n_qbits - 2
-
-	for i in range(0, last_node_bit):
-		for j in range(i + 1, n_qbits):
-			X | nodes[j]
-		with Control(eng, nodes[i+1:]):
-			X | nodes[i]
-		for j in range(i + 1, n_qbits):
-			X | nodes[j]
-
-	X | nodes[control_bit]
-	with Control(eng, nodes[control_bit]):
-		X | nodes[last_node_bit]
-	X | nodes[control_bit]
 
 
 # Perform a given number of steps of a cycle
 def walk(eng, nodes, n_qbits, steps):
 	H | nodes[n_qbits - 1] # uses last bit as coin
 	for s in range(steps):
-		increment(eng, nodes, n_qbits)
-		decrement(eng, nodes, n_qbits)
+		counter(eng, nodes, n_qbits, inc=1)
+		counter(eng, nodes, n_qbits, inc=0)
 
 
 eng = MainEngine ()
