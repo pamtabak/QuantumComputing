@@ -62,7 +62,7 @@ def cyclic_increment_bound(eng, nodes, n_qbits, bin_gsize):
 	# list to accumulate parameters used by generic_control to map |bin_gsize>
 	#  to |0>
 	params = list()
-	while ind < n_of_ones / 2:
+	while ind < n_of_ones:
 		if sel[line]:
 			params.append(
 				(sel[:line] + sel[line + 1:], qubits[:line] + qubits[line +1 :],
@@ -145,7 +145,7 @@ if len(sys.argv) == 4:
 
 if (2 ** (n_qbits - 1) < graph_size):
 	print("Not enough qbits to represent given number of vertices!")
-else:
+else:	
 	eng = MainEngine()
 	nodes = eng.allocate_qureg(n_qbits)
 	walk(eng, nodes, n_qbits, steps, graph_size)
