@@ -143,10 +143,20 @@ if len(sys.argv) == 4:
 
 if (2 ** (n_qbits - 1) < graph_size):
 	print("Not enough qbits to represent given number of vertices!")
-else:	
+
+else:
 	eng = MainEngine()
 	nodes = eng.allocate_qureg(n_qbits)
 	walk(eng, nodes, n_qbits, steps, graph_size)
 	Measure | (nodes)
 	for node in nodes:
 		print(int(node))
+
+
+
+# Test if controls stack
+# X | nodes[n_qbits - 1]
+# with Control(eng, nodes[n_qbits - 1]):
+# 	for i in range(n_qbits - 1):
+# 		with Control(eng, nodes[i + 1: n_qbits - 1]):
+# 			X | nodes[i]
