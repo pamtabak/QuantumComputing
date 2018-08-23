@@ -20,8 +20,6 @@ a prepared qubit on state |0>.
 # Performs a controlled gate mixing off controls, active when qubit is 0, and
 #  normal controls. active when qubit is 1. Sel is a binary array referencing
 #  which qubits will be off and which will be normal.
-
-
 def generic_control(sel, controls, targets, gate, eng, nodes):
 	for j in range(len(sel)): # prepare controls evaluated on qubits
 		if not sel[j]:
