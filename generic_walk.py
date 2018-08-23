@@ -1,3 +1,30 @@
+"""
+Script to perform a quantum walk on a graph with structure specified by 
+boolean functions (shifts and aditions) over the qbit state representation. It 
+offers a generalization of quantum walks performed over cycles, hyper cycles,
+grids and some other types of graphs which can be composed by additions of the
+qubit state boolean representation, e.g a cycle is formed by using a constant
+addition on a vertex state representation (|0000> is adjacent to |0001> and 
+|1111> in a 16-vertex cycle).
+
+In order to achieve genaralization, the functions can be visualized following a
+coordinate approach. To exemplify, one can define a closed grid graph by 
+assigning each vertex a label (x, y), and stating that its neighbors are 
+(x + 1, y), (x-1, y), (x,y + 1) and (x, y -1). A simple representation of this
+strtucture using qbits can be visualized looking at a state |xyzw> as the state
+|(x,y), (z,w)>, where each pair qbits define a coordinate.
+
+To expand even further the power of description, a coordinate can be specified
+to be any combination of qbit states. In essence, the quantum walk operates 
+by selecting a coordinate to move on. This procedure make it possible to discard
+the need of creating the graph in memory, since, on each step, the neighbors of
+a vertex can be achieved applying a coordinate function.
+
+This type of Quantum Walk follows a unitary evolution by an operator
+U = SC, where S permutes the basis state and C becomes the coin operator.
+"""
+
+
 import sys
 
 import projectq.setups.default
@@ -9,6 +36,10 @@ from projectq.types import WeakQubitRef, Qureg
 
 from numpy import cumsum, log2, base_repr
 
+
+################################################################################
+#---------------Qubit operations-----------------------------------------------
+################################################################################
 
 # Performs a controlled gate mixing off controls, active when qubit is 0, and
 #  normal controls. active when qubit is 1. Sel is a binary array referencing
@@ -96,31 +127,9 @@ def apply_on_coord_given_control(
 
 
 
-# Parser for inputs defining a graph structure which the random walk will take 
-#  place. It's based on the concept of coordinates where each tuple of 
-#  'func_tuples' will define a degree of freedom. It demands that both inputs 
-#  have the same length. The 'logical_coords' parameter specifies, for each
-#  degree of freedom, the group of qbits that will be used to represent it.
-#  As an example, the input [('sm1')], [(4)] represents a cyclic graph with 16
-#  nodes.
-#
-def function_compiler(func_tuples, logical_coords):
-
-	func_dict = {"sh": cyclic_shift, "sm": cyclic_adder}
-
-	assert (len(func_tuples) == len(logical_coords)), \
-		"One function for each coordinate!"
-
-	coord_funcs = list()
-	d_freedom = len(func_tuples)
-	params = list()
-
-	for j in range(d_freedom): # iterate over coordinates
-		commands = func_tuples[j].replace(" ","").split(",")
-		coord_funcs += [[func_dict[command[:2]] for command in commands]]
-		params += [[int(command[2:]) for command in commands]]
-
-	return coord_funcs, params
+################################################################################
+#-------------------------Functions related to coin states ---------------------
+################################################################################
 
 
 # Compute how many coin qbits will be needed for the number of degrees of 
@@ -128,15 +137,6 @@ def function_compiler(func_tuples, logical_coords):
 #
 def num_coin_qbits(coords):
 	return int(log2(len(coords))) + 1
-
-
-# Allocated needed qbits taking into account the coin dimension.
-#
-def create_register(n_qbits, coords):
-	eng = MainEngine()
-	n_cqbit = num_coin_qbits(coords)
-	return eng, eng.allocate_qureg(n_qbits + n_cqbit), \
-		list(range(n_qbits, n_qbits + n_cqbit))
 
 
 # Pads a given boolean state to the number of bits needed.
@@ -169,6 +169,47 @@ def define_coin_state(coins):
 def coin_superposition(state, coin_qbits):
 	for i in coin_qbits:
 		H | state[i]
+
+
+################################################################################
+#------------ Initializers -----------------------------------------------------
+################################################################################
+
+
+# Allocated needed qbits taking into account the coin dimension.
+#
+def create_register(n_qbits, coords):
+	eng = MainEngine()
+	n_cqbit = num_coin_qbits(coords)
+	return eng, eng.allocate_qureg(n_qbits + n_cqbit), \
+		list(range(n_qbits, n_qbits + n_cqbit))
+
+
+# Parser for inputs defining a graph structure which the random walk will take 
+#  place. It's based on the concept of coordinates where each tuple of 
+#  'func_tuples' will define a degree of freedom. It demands that both inputs 
+#  have the same length. The 'logical_coords' parameter specifies, for each
+#  degree of freedom, the group of qbits that will be used to represent it.
+#  As an example, the input [('sm1')], [(4)] represents a cyclic graph with 16
+#  nodes.
+#
+def function_compiler(func_tuples, logical_coords):
+
+	func_dict = {"sh": cyclic_shift, "sm": cyclic_adder}
+
+	assert (len(func_tuples) == len(logical_coords)), \
+		"One function for each coordinate!"
+
+	coord_funcs = list()
+	d_freedom = len(func_tuples)
+	params = list()
+
+	for j in range(d_freedom): # iterate over coordinates
+		commands = func_tuples[j].replace(" ","").split(",")
+		coord_funcs += [[func_dict[command[:2]] for command in commands]]
+		params += [[int(command[2:]) for command in commands]]
+
+	return coord_funcs, params
 
 
 # Main function to walk on a graph defined by functions applied on qbit state 
