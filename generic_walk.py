@@ -35,6 +35,7 @@ from projectq.meta import Dagger, Control
 from projectq.types import WeakQubitRef, Qureg
 
 from numpy import cumsum, log2, base_repr
+import numpy as np
 
 
 ################################################################################
@@ -120,7 +121,7 @@ def apply_on_coord_given_control(
 
 	# apply all the functions referenced by the same coin state
 	for k in range(len(q_funcs)):
-		print(q_funcs[k], params[k], q_target, "coord function")
+		# print(q_funcs[k], params[k], q_target, "coord function")
 		q_funcs[k](eng, state, q_target, q_control, *params[k])
 
 	flipflop_control(c_mask, q_control, state)
@@ -239,13 +240,57 @@ def walk(n_qbits, steps, funcs, coords, coin_rep):
 
 	# print output
 	Measure | (state)
-	for node in state:
-		print(int(node))
+	return [int(node) for node in state]
 
 
 # walk on a grid
-test_cycle = [("sm1"), ("sm1")]
+test_cycle = [("sm1,sh1"), ("sm1,sh1")]
 coords = [(0, 1), (2, 3)]
 coins = [(1, 0), (2, 3)]
 steps = 1
-walk(4, steps, test_cycle, coords, coins)
+
+def bin_to_int(l):
+	s = 0
+	for i in range(len(l)):
+		s += (2 ** i) * l[len(l) - i - 1]
+	return s
+
+walk_steps = 32
+stats = np.zeros(32)
+for i in range(walk_steps):
+	print(i)
+	for j in range(100):
+		state = walk(5, i + 1, test_cycle, coords, coins)
+		st = bin_to_int(state[:len(state) - 2])
+		stats[st] += 1
+
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+num_bins = 32
+
+fig, ax = plt.subplots()
+
+# the histogram of the data
+# ax.plot(np.arange(1, 33), stats / walk_steps * 0.01)
+
+markerline, stemlines, baseline = ax.stem(
+	np.arange(1, 33), stats / walk_steps * 0.01, '-.')
+plt.setp(baseline, 'color', 'r', 'linewidth', 2)
+
+ax.set_xlabel('Vertex')
+ax.set_ylabel('Probability density')
+ax.set_title(r'Histogram of Vertex Seen in Walk: $n=100$, $s=32$')
+
+ax.set_xlabel('Vertex')
+ax.set_ylabel('Probability density')
+ax.set_title(r'Histogram of Vertex Seen in Walk: $n=100$, $s=32$')
+
+
+# Tweak spacing to prevent clipping of ylabel
+fig.tight_layout()
+plt.savefig("statistics.png")
+
+print(stats)
+
